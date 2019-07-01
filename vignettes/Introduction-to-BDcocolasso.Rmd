@@ -26,12 +26,11 @@ data("simulated_data_missing_block")
 data("simulated_data_additive_block")
 ```
 
-These datasets correspond to corrupted datasets in additive error setting and missing data setting, and to partially corrupted datasets in additive error setting and missing data setting. In the missing data setting, those datasets contain NAs values, whereas in the additive error setting, they do not contain NAs values but the covariates are measured with error. 
-We will note that it is essential to know the standard deviation corresponding to the additive error matrix in the additive error setting, in order to run the CoCoLasso algorithm.
+These four datasets are corrupted datasets with one of four structures: an additive error setting, a missing data setting, and then two  partially corrupted datasets one with an additive error setting and finally one with a missing data setting. In either dataset following the missing data setting, some covariates are occasionally missing and contain NA values. In contrast, in the additive error settings, there are no missing values in the datasets, but the covariates are contaminated by an additive error (i.e.\ measured with error).  We note that, in order to run the CoCoLasso algorithm, it is essential to know the variance-covariance matrix for the additive error matrix in the additive error setting.   
 
 ## CoCoLasso algorithm
 
-We can first perform classic CoCoLasso algorithm. To do that, it is important to note that the datasets must be converted to a matrix:
+We can first perform analysis with the classic CoCoLasso algorithm with a missing data scenario. To do that, it is important to note that the datasets must be converted to a matrix format:
 
 ```{r}
 y_missing <- simulated_data_missing[,1]
@@ -42,13 +41,13 @@ p_missing <- dim(Z_missing)[2]
 y_missing = as.matrix(y_missing)
 ```
 
-We can then fit the CoCoLasso model to our data. It is important to specify the type of noise (additive or missing) and the use of CoCoLasso (block=FALSE) or BD-CoCoLasso (block=TRUE). Here, `noise` is equal to `missing` because we have NAs values in the dataset :
+We can then fit the CoCoLasso model to our data. It is important to specify the type of contamination of the dataset (additive or missing) and the use of CoCoLasso (block=FALSE) or BD-CoCoLasso (block=TRUE).  The term `noise` refers to the type of contamination.  Here, `noise` is equal to `missing` because we have NAs values in the dataset :
 ```{r}
 
 fit_missing = coco(Z=Z_missing,y=y_missing,n=n_missing,p=p_missing,step=100,K=4,mu=10,tau=NULL, etol = 1e-4,noise = "missing",block=FALSE)
 ```
 
-It is possible to print the fitted object, so as to display the evolution of mean-squared error in function of lambda values:
+It is possible to print the fitted object, so as to display the evolution of mean-squared error as a function of the penalization lambda values:
 ```{r}
 print(fit_missing)
 
@@ -60,7 +59,7 @@ coef(fit_missing)
 coef(fit_missing, s=fit_missing$lambda.opt)
 ```
 
-It is also possible to obtain a prediction for new covariates values. Let's simulate values following the same simulation pattern used to obtain Z_missing, and look at the obtained prediction. Default configuration is using coefficients for lambda.sd:
+It is also possible to obtain a prediction for new covariate values. Let's simulate values following the same simulation pattern used to obtain Z_missing, and look at the obtained prediction. The default choice for selecting the value of lambda and corresponding coefficient values is the configuration obtained when using coefficients `lambda.sd`, that is one standard deviation larger than the value of lambda giving minimum mean-squared error:
 
 ```{r}
 cov = cov_autoregressive(p_missing)
@@ -73,13 +72,13 @@ y_predict.sd
 
 ```
 
-But it is also possible to specify the lambda value at which we wish to calculate the prediction:
+It is also possible to specify the lambda value at which we wish to calculate the prediction:
 ```{r}
 y_predict.opt <- predict(fit_missing, newx = X, type="response", lambda.pred = fit_missing$lambda.opt)
 y_predict.opt
 ```
 
-It is then possible to visualize the solution path of the coefficients:
+It is then possible to visualize the solution paths of the coefficients:
 ```{r}
 plotCoef(fit_missing)
 ```
@@ -89,9 +88,9 @@ It is also possible to visualize the mean-squared error for all values of lambda
 plotError(fit_missing)
 ```
 In red is the mean squared error (without the constant term, which is why we obtain negative values), and in black are the standard deviations for each error value.
-On each of the plots, the left dashed line represent the optimum lambda, while the right dashed line represent the lambda corresponding to the one-standard-error rule.
+On each of the plots, the left vertical dashed line represent the optimum lambda, while the right vertical dashed line represent the lambda corresponding to the one-standard-error rule.
 
-We can do the same with additive error setting :
+We can do the same with the additive error setting :
 ```{r}
 y_additive <- simulated_data_additive[,1]
 Z_additive = simulated_data_additive[,2:dim(simulated_data_additive)[2]]
@@ -102,7 +101,7 @@ y_additive = as.matrix(y_additive)
 
 ```
 
-Let's fit CoCoLasso:
+Let's fit CoCoLasso to these simulated data with additive error:
 ```{r}
 
 
@@ -110,7 +109,9 @@ fit_additive = coco(Z=Z_additive,y=y_additive,n=n_additive,p=p_additive,center.Z
 
 ```
 
-Here, we do not center Z because it is not necessary and it might lead to introducing bias, because of the additive error setting. It is very important to know (or estimate) \code{tau} parameter corresponding to the standard deviation of the error matrix. Without it, the algorithm cannot run. In our example with simulated data, \code{tau} is equal to `0.3`.
+Here, we do not center the covariates Z because it is not necessary, and it might lead to introducing bias, because of the additive error setting. It is very important to know (or estimate) the \code{tau} parameter corresponding to the standard deviation of the error matrix. Without it, the algorithm cannot run. In our example with simulated data, \code{tau} is equal to `0.3`.
+
+Note that all variables are assumed to have the same measurement error. (Célia -- can the error matrix have off-diagonal elements that are non zero? can the tau terms be different for different variables?)
 
 We can plot coefficients and the mean-squared-error:
 ```{r}
@@ -120,7 +121,7 @@ plotError(fit_additive)
 
 ## Block-Descent CoCoLasso algorithm
 
-The BDCoCoLasso algorithms functions the same way. We can fit the model for both datasets. We have to be careful to use \code{block=TRUE}:
+The BDCoCoLasso algorithms function in a very similar way to the simple CoCoLasso algorithms. We can fit the model for both types of datasets. We have to be careful to use \code{block=TRUE}:
 ```{r}
 p1 <- 180
 p2 <- 20
@@ -146,7 +147,7 @@ fit_additive = coco(Z=Z_additive,y=y_additive,n=n_additive,p=p_additive,p1=p1,p2
 ```
 
 Note that the algorithm requires that the first p1 columns of Z be the uncorrupted covariates, and the last p2 columns be the corrupted covariates.
-It it also important to keep in mind that this algorithm has a relatively high computational cost. In the example given above, it is normal that code should run for a dozens seconds before obtaining a result. It also requires a big amount of memory when the number of features reaches the thousands.
+It it also important to keep in mind that this algorithm has a relatively high computational cost. In the example given above, it is normal that code should run for a dozen seconds before obtaining a result. It also requires a big amount of memory when the number of features reaches the thousands.
 
 We can plot the coefficients and the error for the missing data scenario. Here we should expect to have 6 non-zero coefficients, with pairs of coefficient having similar values, since data was simulated with beta = c(3,2,0,0,1.5,0,...,0,1.5,0,0,2,3).
 ```{r}
